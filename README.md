@@ -1,2 +1,2 @@
 # x86-compute-shade
-compute shade repo
+(project is not finished!!!)
