@@ -1,41 +1,107 @@
-ill re format this for the file later, currently messy due to me just copying my assembly build. -will
+import org.lwjgl.glfw.GLFW;
+import org.lwjgl.opengl.GL;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL20;
+import org.lwjgl.opengl.GL30;
 
-section .data
-    array1 dd 1, 2, 3, 4, 5
-    array2 dd 6, 7, 8, 9, 10
-    result dd 0, 0, 0, 0, 0
+import java.nio.IntBuffer;
 
-section .text
-    global _start
+import static org.lwjgl.glfw.GLFW.*;
+import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL20.*;
+import static org.lwjgl.opengl.GL30.*;
+import static org.lwjgl.system.MemoryUtil.*;
 
-_start:
-    ; Set up indices and loop counter
-    mov ecx, 5 ; Number of elements in the arrays
-    mov esi, 0 ; Index for array1
-    mov edi, 0 ; Index for array2
-    mov ebx, 0 ; Index for result
+public class ComputeShaderExample {
 
-    ; Start loop for element-wise addition
-compute_loop:
-    ; Load elements from array1 and array2
-    mov eax, [array1 + esi * 4]
-    add eax, [array2 + edi * 4]
+    private long window;
 
-    ; Store the result in the result array
-    mov [result + ebx * 4], eax
+    public void run() {
+        init();
+        loop();
 
-    ; update indices
-    inc esi
-    inc edi
-    inc ebx
+        // Clean up resources
+        glfwFreeCallbacks(window);
+        glfwDestroyWindow(window);
 
-    ; Check if we have processed all elements
-    loop compute_loop
+        // Terminate GLFW and free the error callback
+        glfwTerminate();
+        glfwSetErrorCallback(null).free();
+    }
 
-    ; program end
-    mov eax, 1 ; Exit system call code
-    xor ebx, ebx ; Exit code 0
-    int 0x80 ; Invoke the kernel
+    private void init() {
+        // Initialize GLFW
+        if (!glfwInit()) {
+            throw new IllegalStateException("Unable to initialize GLFW");
+        }
+
+        // Configure GLFW
+        glfwDefaultWindowHints();
+        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+
+        // Create the window
+        window = glfwCreateWindow(800, 600, "Compute Shader Example", NULL, NULL);
+        if (window == NULL) {
+            throw new RuntimeException("Failed to create the GLFW window");
+        }
+
+        // Set up a key callback
+        glfwSetKeyCallback(window, (window, key, scancode, action, mods) -> {
+            if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE) {
+                glfwSetWindowShouldClose(window, true);
+            }
+        });
+
+        // Make the OpenGL context current
+        glfwMakeContextCurrent(window);
+        glfwSwapInterval(1);
+
+        // Make the window visible
+        glfwShowWindow(window);
+
+        // Create OpenGL context
+        GL.createCapabilities();
+
+        // Set up the compute shader
+        int computeShaderId = glCreateShader(GL_COMPUTE_SHADER);
+        glShaderSource(computeShaderId, "#version 430 core\nlayout (local_size_x = 1, local_size_y = 1) in;\nvoid main() {\n  // Compute shader code here\n}", null);
+        glCompileShader(computeShaderId);
+
+        // Check for shader compilation errors
+        if (glGetShaderi(computeShaderId, GL_COMPILE_STATUS) == GL_FALSE) {
+            throw new RuntimeException("Failed to compile compute shader: " + glGetShaderInfoLog(computeShaderId));
+        }
+
+        // Create a program and attach the compute shader
+        int programId = glCreateProgram();
+        glAttachShader(programId, computeShaderId);
+        glLinkProgram(programId);
+
+        // Check for program linking errors
+        if (glGetProgrami(programId, GL_LINK_STATUS) == GL_FALSE) {
+            throw new RuntimeException("Failed to link program: " + glGetProgramInfoLog(programId));
+        }
+
+        // Use the program
+        glUseProgram(programId);
+    }
+
+    private void loop() {
+        while (!glfwWindowShouldClose(window)) {
+            glDispatchCompute(1, 1, 1);
+            glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+            // Swap buffers and poll for events
+            glfwSwapBuffers(window);
+            glfwPollEvents();
+        }
+    }
+
+    public static void main(String[] args) {
+        new ComputeShaderExample().run();
+    }
+}
 
 section .bss
     ; No uninitialized data in this example
