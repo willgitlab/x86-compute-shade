@@ -104,4 +104,4 @@ public class ComputeShaderExample {
 }
 
 section .bss
-    ; No uninitialized data in this example
+    // no uninitilized data in this exmalple 
